@@ -116,10 +116,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center text-white text-lg shadow-sm group-hover:shadow-md transition-shadow">
-              🐾
-            </div>
-            <span className="text-lg font-bold text-slate-900">FurMap</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.svg"
+              alt="Huellitas"
+              className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform"
+            />
+            <span className="text-lg font-bold text-slate-900">Huellitas</span>
           </Link>
 
           {/* Mobile menu button */}
@@ -147,7 +150,7 @@ export default function Navbar() {
               <>
                 <NavLink href="/dashboard">Dashboard</NavLink>
                 <NavLink href="/create-post">Nuevo Post</NavLink>
-                <NavLink href="/my-pets">Mis Mascotas</NavLink>
+                <NavLink href="/services">Servicios</NavLink>
 
                 <div className="relative ml-2" ref={dropdownRef}>
                   <button
@@ -231,7 +234,7 @@ export default function Navbar() {
           <div ref={mobileMenuRef} className="lg:hidden py-3 border-t border-slate-100 space-y-1 animate-fade-in">
             <NavLink href="/dashboard" onClick={() => setShowMobileMenu(false)}>Dashboard</NavLink>
             <NavLink href="/create-post" onClick={() => setShowMobileMenu(false)}>Nuevo Post</NavLink>
-            <NavLink href="/my-pets" onClick={() => setShowMobileMenu(false)}>Mis Mascotas</NavLink>
+            <NavLink href="/services" onClick={() => setShowMobileMenu(false)}>Servicios</NavLink>
             <NavLink href="/notifications" onClick={() => setShowMobileMenu(false)}>
               Notificaciones {unreadCount > 0 && <span className="ml-1 badge badge-red">{unreadCount}</span>}
             </NavLink>

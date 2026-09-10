@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FurMap - Mapa de mascotas de Córdoba",
+  title: "Huellitas - Mapa de mascotas de Córdoba",
   description: "Plataforma comunitaria para reportar mascotas perdidas, encontradas y encontrar cuidadores en Córdoba, Argentina.",
 };
 

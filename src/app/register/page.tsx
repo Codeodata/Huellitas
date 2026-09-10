@@ -62,11 +62,14 @@ export default function RegisterPage() {
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gradient-hero px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">
-            🐾
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Huellitas"
+            className="w-16 h-16 mx-auto mb-4 drop-shadow-md"
+          />
           <h1 className="text-3xl font-bold text-slate-900">Crear cuenta</h1>
-          <p className="text-slate-600 mt-2">Sumate a la comunidad de FurMap</p>
+          <p className="text-slate-600 mt-2">Sumate a la comunidad de Huellitas</p>
         </div>
 
         <div className="card p-8">

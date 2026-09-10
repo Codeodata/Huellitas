@@ -67,6 +67,13 @@ export default function Home() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 pt-16 pb-20 sm:pt-24 sm:pb-28">
         <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Huellitas"
+            className="w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6 drop-shadow-lg"
+          />
+
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/60 backdrop-blur rounded-full border border-slate-200 mb-6">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-medium text-slate-700">Comunidad activa en Córdoba</span>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { PostWithDetails } from '@/types'
-import { formatDate, getPetEmoji, getPostTypeLabel } from '@/lib/utils'
+import { formatDate, getPetEmoji, getPostTypeInfo } from '@/lib/utils'
 
 interface PostCardProps {
   post: PostWithDetails & { photo_url?: string | null }
@@ -8,13 +8,7 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const photoUrl = (post as any).photo_url || post.pets?.photo_url
-
-  const badgeClass =
-    post.type === 'lost'
-      ? 'badge-red'
-      : post.type === 'found'
-      ? 'badge-green'
-      : 'badge-blue'
+  const info = getPostTypeInfo(post.type)
 
   return (
     <Link href={`/post/${post.id}`}>
@@ -34,7 +28,10 @@ export default function PostCard({ post }: PostCardProps) {
             </div>
           )}
           <div className="absolute top-3 left-3">
-            <span className={`badge ${badgeClass}`}>{getPostTypeLabel(post.type)}</span>
+            <span className={`badge ${info.badgeBg} ${info.badgeText}`}>
+              <span className="mr-1">{info.emoji}</span>
+              {info.label}
+            </span>
           </div>
           {post.status === 'resolved' && (
             <div className="absolute top-3 right-3">

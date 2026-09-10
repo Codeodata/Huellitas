@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { compressImage } from '@/lib/imageCompression'
 
 interface PhotoUploadProps {
   value: string | null
@@ -12,6 +13,7 @@ interface PhotoUploadProps {
 export default function PhotoUpload({ value, onChange, userId }: PhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -26,23 +28,33 @@ export default function PhotoUpload({ value, onChange, userId }: PhotoUploadProp
       return
     }
 
-    // Validar tamaño (máx 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen no puede superar los 5MB')
+    // Aceptamos hasta 15 MB porque después comprimimos a ~500 KB
+    if (file.size > 15 * 1024 * 1024) {
+      setError('La imagen no puede superar los 15 MB')
       return
     }
 
     setUploading(true)
 
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${userId}/${Date.now()}.${fileExt}`
+      // Comprimir la imagen en el navegador antes de subir
+      setStatus('Comprimiendo...')
+      const compressed = await compressImage(file, {
+        maxWidth: 1600,
+        maxHeight: 1600,
+        quality: 0.82,
+        maxSizeMB: 0.6,
+      })
+
+      setStatus('Subiendo...')
+      const fileName = `${userId}/${Date.now()}.jpg`
 
       const { error: uploadError } = await supabase.storage
         .from('post-photos')
-        .upload(fileName, file, {
+        .upload(fileName, compressed, {
           cacheControl: '3600',
           upsert: false,
+          contentType: 'image/jpeg',
         })
 
       if (uploadError) throw uploadError
@@ -53,6 +65,7 @@ export default function PhotoUpload({ value, onChange, userId }: PhotoUploadProp
       setError(err.message || 'Error al subir la imagen')
     } finally {
       setUploading(false)
+      setStatus('')
     }
   }
 
@@ -116,7 +129,7 @@ export default function PhotoUpload({ value, onChange, userId }: PhotoUploadProp
           {uploading ? (
             <>
               <div className="w-8 h-8 border-2 border-slate-300 border-t-sky-500 rounded-full animate-spin mx-auto mb-2" />
-              <p className="text-sm text-slate-600">Subiendo...</p>
+              <p className="text-sm text-slate-600">{status || 'Procesando...'}</p>
             </>
           ) : (
             <>
@@ -124,7 +137,8 @@ export default function PhotoUpload({ value, onChange, userId }: PhotoUploadProp
                 📷
               </div>
               <p className="text-sm font-medium text-slate-700">Subir foto</p>
-              <p className="text-xs text-slate-500 mt-1">JPG, PNG o WEBP · hasta 5MB</p>
+              <p className="text-xs text-slate-500 mt-1">JPG, PNG o WEBP · hasta 15 MB</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Se optimiza automáticamente para cargar más rápido</p>
             </>
           )}
         </button>

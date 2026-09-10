@@ -54,15 +54,15 @@ export default function MapPicker({ center, onLocationSelect }: MapPickerProps) 
         maxZoom: 19,
       }).addTo(map)
 
-      // Marker moderno con divIcon
+      // Marker moderno con huellita
       const html = `
-        <div style="position:relative;width:32px;height:40px;transform:translate(-50%,-100%)">
+        <div style="position:relative;width:36px;height:44px;transform:translate(-50%,-100%)">
           <div style="
             position:absolute;left:50%;top:0;transform:translateX(-50%);
-            width:32px;height:32px;border-radius:9999px;background:#0EA5E9;
+            width:36px;height:36px;border-radius:9999px;background:#0EA5E9;
             border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.18),0 0 0 4px #BAE6FD;
-            display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;
-          ">📍</div>
+            display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;
+          ">🐾</div>
           <div style="
             position:absolute;left:50%;bottom:0;transform:translateX(-50%);
             width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
@@ -73,8 +73,8 @@ export default function MapPicker({ center, onLocationSelect }: MapPickerProps) 
       const customIcon = L.divIcon({
         html,
         className: '',
-        iconSize: [32, 40],
-        iconAnchor: [16, 40],
+        iconSize: [36, 44],
+        iconAnchor: [18, 44],
       })
 
       const marker = L.marker(initialCenter, { draggable: true, icon: customIcon }).addTo(map)

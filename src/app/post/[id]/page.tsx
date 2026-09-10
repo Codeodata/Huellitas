@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 import { PostWithDetails } from '@/types'
-import { formatDate, getPetEmoji, getPostTypeLabel } from '@/lib/utils'
+import { formatDate, getPetEmoji, getPostTypeInfo } from '@/lib/utils'
 import Comments from '@/components/Comments'
 
 const MapView = dynamic(() => import('@/components/MapView'), {
@@ -82,13 +82,7 @@ export default function PostDetailPage() {
 
   const isOwner = user?.id === post.author_id
   const photoUrl = (post as any).photo_url || post.pets?.photo_url
-
-  const badgeClass =
-    post.type === 'lost'
-      ? 'badge-red'
-      : post.type === 'found'
-      ? 'badge-green'
-      : 'badge-blue'
+  const info = getPostTypeInfo(post.type)
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-6 px-4">
@@ -113,7 +107,10 @@ export default function PostDetailPage() {
           <div className="p-6 sm:p-8">
             {/* Meta */}
             <div className="flex items-center justify-between mb-4">
-              <span className={`badge ${badgeClass}`}>{getPostTypeLabel(post.type)}</span>
+              <span className={`badge ${info.badgeBg} ${info.badgeText}`}>
+                <span className="mr-1">{info.emoji}</span>
+                {info.label}
+              </span>
               <span className="text-sm text-slate-500">{formatDate(post.created_at)}</span>
             </div>
 

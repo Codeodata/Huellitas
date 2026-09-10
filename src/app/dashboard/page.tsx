@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { PostWithDetails, Profile } from '@/types'
-import { formatDate, getPetEmoji, getPostTypeLabel } from '@/lib/utils'
+import { formatDate, getPetEmoji, getPostTypeInfo, POST_TYPES } from '@/lib/utils'
 
-// Coordenadas de Córdoba, Argentina
 const CORDOBA_CENTER: [number, number] = [-31.4201, -64.1888]
 
 const MapView = dynamic(() => import('@/components/MapView'), {
@@ -23,13 +22,21 @@ const MapView = dynamic(() => import('@/components/MapView'), {
   ),
 })
 
+type SortOrder = 'newest' | 'oldest'
+
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [posts, setPosts] = useState<PostWithDetails[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<string>('all')
+
+  // Filtros
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set()) // vacío = todos
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortOrder>('newest')
+  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped')
+
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [detectingLocation, setDetectingLocation] = useState(false)
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
@@ -52,7 +59,6 @@ export default function DashboardPage() {
       if (profile) setProfile(profile)
       setLoading(false)
     }
-
     getUser()
   }, [router])
 
@@ -74,7 +80,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchPosts = async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('posts')
         .select(`
           *,
@@ -84,45 +90,74 @@ export default function DashboardPage() {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
 
-      if (filter !== 'all') {
-        query = query.eq('type', filter)
-      }
-
-      const { data, error } = await query
       if (!error && data) setPosts(data as any)
     }
-
     fetchPosts()
-  }, [filter])
+  }, [])
 
+  // Realtime updates
   useEffect(() => {
     const channel = supabase
       .channel('posts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
-        const fetchPosts = async () => {
-          let query = supabase
-            .from('posts')
-            .select(`
-              *,
-              profiles:author_id(username, avatar_url),
-              pets:pet_id(name, type, breed, photo_url)
-            `)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-
-          if (filter !== 'all') query = query.eq('type', filter)
-
-          const { data } = await query
-          if (data) setPosts(data as any)
-        }
-        fetchPosts()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, async () => {
+        const { data } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles:author_id(username, avatar_url),
+            pets:pet_id(name, type, breed, photo_url)
+          `)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+        if (data) setPosts(data as any)
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [filter])
+  }, [])
+
+  // Filtrado y ordenamiento
+  const filteredPosts = useMemo(() => {
+    let out = posts.slice()
+
+    if (activeTypes.size > 0) {
+      out = out.filter((p) => activeTypes.has(p.type))
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      out = out.filter(
+        (p) =>
+          p.title?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          p.address?.toLowerCase().includes(q)
+      )
+    }
+
+    out.sort((a, b) => {
+      const at = new Date(a.created_at).getTime()
+      const bt = new Date(b.created_at).getTime()
+      return sort === 'newest' ? bt - at : at - bt
+    })
+
+    return out
+  }, [posts, activeTypes, search, sort])
+
+  const toggleType = (type: string) => {
+    setActiveTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+  }
+
+  const clearFilters = () => {
+    setActiveTypes(new Set())
+    setSearch('')
+  }
 
   if (loading) {
     return (
@@ -132,24 +167,28 @@ export default function DashboardPage() {
     )
   }
 
-  const filters = [
-    { value: 'all', label: 'Todos', dot: 'bg-slate-400' },
-    { value: 'lost', label: 'Perdidas', dot: 'bg-rose-500' },
-    { value: 'found', label: 'Encontradas', dot: 'bg-emerald-500' },
-    { value: 'sitter_needed', label: 'Cuidador', dot: 'bg-sky-500' },
-  ]
+  const typeKeys = ['lost', 'found', 'adoption', 'foster', 'sitter_needed', 'emergency']
 
-  const stats = {
-    lost: posts.filter((p) => p.type === 'lost').length,
-    found: posts.filter((p) => p.type === 'found').length,
-    sitter: posts.filter((p) => p.type === 'sitter_needed').length,
-  }
+  // Contadores por tipo (sobre los filtrados por búsqueda para que sea coherente)
+  const searchFiltered = search.trim()
+    ? posts.filter((p) => {
+        const q = search.toLowerCase()
+        return (
+          p.title?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          p.address?.toLowerCase().includes(q)
+        )
+      })
+    : posts
 
-  // Coordenadas al hacer click en un post de la lista
+  const countByType = (t: string) => searchFiltered.filter((p) => p.type === t).length
+
   const centerOnPost = (post: PostWithDetails) => {
     setUserLocation([post.latitude, post.longitude])
     setSelectedPostId(post.id)
   }
+
+  const hasFilters = activeTypes.size > 0 || search.trim().length > 0
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50">
@@ -170,58 +209,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="card p-3 sm:p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
-                <span className="w-3 h-3 rounded-full bg-rose-500" />
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.lost}</p>
-                <p className="text-xs text-slate-500">Perdidas</p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-3 sm:p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <span className="w-3 h-3 rounded-full bg-emerald-500" />
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.found}</p>
-                <p className="text-xs text-slate-500">Encontradas</p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-3 sm:p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center">
-                <span className="w-3 h-3 rounded-full bg-sky-500" />
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.sitter}</p>
-                <p className="text-xs text-slate-500">Cuidador</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-          {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`filter-pill whitespace-nowrap flex items-center gap-2 ${filter === f.value ? 'active' : ''}`}
-            >
-              <span className={`w-2 h-2 rounded-full ${f.dot}`} />
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Layout mapa + lista */}
+        {/* Layout mapa + panel */}
         <div className="grid lg:grid-cols-5 gap-4">
           {/* Mapa */}
           <div className="lg:col-span-3 order-2 lg:order-1">
@@ -233,44 +221,139 @@ export default function DashboardPage() {
               >
                 {detectingLocation ? '📍 Buscando...' : '📍 Mi ubicación'}
               </button>
-              <div className="h-[420px] sm:h-[520px] lg:h-[640px]">
-                <MapView posts={posts} center={userLocation || undefined} />
+              <div className="h-[420px] sm:h-[520px] lg:h-[720px]">
+                <MapView posts={filteredPosts} center={userLocation || undefined} />
               </div>
             </div>
           </div>
 
-          {/* Lista */}
-          <div className="lg:col-span-2 order-1 lg:order-2">
-            <div className="card overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  {posts.length} {posts.length === 1 ? 'post' : 'posts'}
-                </h3>
-                <span className="text-xs text-slate-500">Ordenado por fecha</span>
+          {/* Panel lateral: filtros + secciones */}
+          <div className="lg:col-span-2 order-1 lg:order-2 space-y-4">
+            {/* Buscador */}
+            <div className="card p-3">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.15 5.15a7.5 7.5 0 0011.5 11.5z" />
+                </svg>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por título, descripción o barrio..."
+                  className="input pl-9"
+                />
+              </div>
+            </div>
+
+            {/* Filtros de tipo (multi-select) */}
+            <div className="card p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Filtrar por tipo</h3>
+                {hasFilters && (
+                  <button onClick={clearFilters} className="text-xs text-sky-600 hover:text-sky-700 font-medium">
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {typeKeys.map((t) => {
+                  const info = POST_TYPES[t]
+                  const isActive = activeTypes.has(t)
+                  const count = countByType(t)
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => toggleType(t)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                        isActive
+                          ? `${info.badgeBg} ${info.badgeText} border-transparent`
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <span>{info.emoji}</span>
+                      <span>{info.short}</span>
+                      <span className={`text-[10px] px-1 rounded ${isActive ? 'bg-white/60' : 'bg-slate-100'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Toggles de vista y orden */}
+            <div className="card p-3 flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide mr-1">Vista</span>
+              <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('grouped')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === 'grouped' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  Por tipo
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  Lista
+                </button>
               </div>
 
-              <div className="max-h-[420px] sm:max-h-[520px] lg:max-h-[640px] overflow-y-auto">
-                {posts.length > 0 ? (
-                  <div className="divide-y divide-slate-100">
-                    {posts.map((post) => (
-                      <PostListItem
-                        key={post.id}
-                        post={post}
-                        selected={selectedPostId === post.id}
-                        onFocus={() => centerOnPost(post)}
-                      />
-                    ))}
-                  </div>
-                ) : (
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOrder)}
+                className="ml-auto text-xs bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700"
+              >
+                <option value="newest">Más nuevos</option>
+                <option value="oldest">Más viejos</option>
+              </select>
+            </div>
+
+            {/* Lista/Secciones */}
+            <div className="card overflow-hidden">
+              <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {filteredPosts.length} {filteredPosts.length === 1 ? 'resultado' : 'resultados'}
+                </h3>
+              </div>
+
+              <div className="max-h-[420px] sm:max-h-[520px] lg:max-h-[600px] overflow-y-auto">
+                {filteredPosts.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-2xl mx-auto mb-3">
                       🐾
                     </div>
-                    <p className="text-sm font-semibold text-slate-900 mb-1">Aún no hay posts</p>
-                    <p className="text-xs text-slate-600 mb-4">¡Sé el primero en publicar!</p>
-                    <Link href="/create-post" className="btn btn-primary text-sm">
-                      Crear post
-                    </Link>
+                    <p className="text-sm font-semibold text-slate-900 mb-1">Sin resultados</p>
+                    <p className="text-xs text-slate-600 mb-4">
+                      {hasFilters ? 'Probá ajustar los filtros.' : '¡Sé el primero en publicar!'}
+                    </p>
+                    {!hasFilters && (
+                      <Link href="/create-post" className="btn btn-primary text-sm">
+                        Crear post
+                      </Link>
+                    )}
+                  </div>
+                ) : viewMode === 'grouped' ? (
+                  <GroupedList
+                    posts={filteredPosts}
+                    typeKeys={typeKeys}
+                    selectedPostId={selectedPostId}
+                    onFocus={centerOnPost}
+                  />
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {filteredPosts.map((p) => (
+                      <PostListItem
+                        key={p.id}
+                        post={p}
+                        selected={selectedPostId === p.id}
+                        onFocus={() => centerOnPost(p)}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -282,7 +365,52 @@ export default function DashboardPage() {
   )
 }
 
-// Item compacto de la lista lateral
+// Vista agrupada por tipo con secciones colapsables
+function GroupedList({
+  posts,
+  typeKeys,
+  selectedPostId,
+  onFocus,
+}: {
+  posts: PostWithDetails[]
+  typeKeys: string[]
+  selectedPostId: string | null
+  onFocus: (p: PostWithDetails) => void
+}) {
+  return (
+    <div>
+      {typeKeys.map((type) => {
+        const info = POST_TYPES[type]
+        const list = posts.filter((p) => p.type === type)
+        if (list.length === 0) return null
+        return (
+          <div key={type}>
+            <div className={`flex items-center justify-between px-4 py-2 sticky top-0 z-10 ${info.badgeBg}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-base">{info.emoji}</span>
+                <span className={`text-xs font-semibold uppercase tracking-wide ${info.badgeText}`}>
+                  {info.label}
+                </span>
+              </div>
+              <span className={`text-xs font-semibold ${info.badgeText}`}>{list.length}</span>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {list.map((p) => (
+                <PostListItem
+                  key={p.id}
+                  post={p}
+                  selected={selectedPostId === p.id}
+                  onFocus={() => onFocus(p)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function PostListItem({
   post,
   selected,
@@ -293,13 +421,7 @@ function PostListItem({
   onFocus: () => void
 }) {
   const photoUrl = (post as any).photo_url || post.pets?.photo_url
-
-  const typeColor =
-    post.type === 'lost'
-      ? { bg: 'bg-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' }
-      : post.type === 'found'
-      ? { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' }
-      : { bg: 'bg-sky-100', text: 'text-sky-700', dot: 'bg-sky-500' }
+  const info = getPostTypeInfo(post.type)
 
   return (
     <div
@@ -309,8 +431,7 @@ function PostListItem({
       onClick={onFocus}
     >
       <div className="flex gap-3">
-        {/* Thumbnail */}
-        <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+        <div className="w-14 h-14 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
           {photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt={post.title} className="w-full h-full object-cover" />
@@ -324,9 +445,8 @@ function PostListItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
             <h4 className="text-sm font-semibold text-slate-900 line-clamp-1">{post.title}</h4>
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColor.bg} ${typeColor.text} flex-shrink-0`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${typeColor.dot}`} />
-              {getPostTypeLabel(post.type)}
+            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${info.badgeBg} ${info.badgeText} flex-shrink-0`}>
+              <span>{info.emoji}</span>
             </span>
           </div>
           <p className="text-xs text-slate-600 line-clamp-2 mb-1.5">{post.description}</p>
@@ -334,7 +454,7 @@ function PostListItem({
             <span className="truncate">📍 {post.address || 'Córdoba'}</span>
             <span className="flex-shrink-0 ml-2">{formatDate(post.created_at)}</span>
           </div>
-          <div className="flex gap-2 mt-2">
+          <div className="mt-1">
             <Link
               href={`/post/${post.id}`}
               onClick={(e) => e.stopPropagation()}

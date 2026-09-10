@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
-import { Pet } from '@/types'
 import PhotoUpload from '@/components/PhotoUpload'
 
 // Coordenadas de Córdoba, Argentina
@@ -22,16 +21,14 @@ const MapPicker = dynamic(() => import('@/components/MapPicker'), {
 export default function CreatePostPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [gettingLocation, setGettingLocation] = useState(false)
 
   const [formData, setFormData] = useState({
-    type: 'lost' as 'lost' | 'found' | 'sitter_needed',
+    type: 'lost' as 'lost' | 'found' | 'sitter_needed' | 'adoption' | 'foster' | 'emergency',
     title: '',
     description: '',
-    petId: '',
     address: '',
     latitude: CORDOBA_CENTER[0],
     longitude: CORDOBA_CENTER[1],
@@ -48,15 +45,7 @@ export default function CreatePostPage() {
         return
       }
       setUser(user)
-
-      const { data: petsData } = await supabase
-        .from('pets')
-        .select('*')
-        .eq('owner_id', user.id)
-
-      if (petsData) setPets(petsData)
     }
-
     getUser()
   }, [router])
 
@@ -108,7 +97,6 @@ export default function CreatePostPage() {
       type: formData.type,
       title: formData.title,
       description: formData.description,
-      pet_id: formData.petId || null,
       latitude: formData.latitude,
       longitude: formData.longitude,
       address: formData.address,
@@ -132,7 +120,7 @@ export default function CreatePostPage() {
       title: 'Perdí a mi mascota',
       tagline: 'Se escapó o no la encuentro',
       description: 'Publicá una alerta para que vecinos y voluntarios te ayuden a encontrarla.',
-      emoji: '🔍',
+      emoji: '🐕',
       colors: {
         border: 'border-rose-500',
         bg: 'bg-rose-50',
@@ -145,7 +133,7 @@ export default function CreatePostPage() {
       title: 'Encontré una mascota',
       tagline: 'La vi o la tengo conmigo',
       description: 'Compartila para reconectarla con su familia. Una foto ayuda muchísimo.',
-      emoji: '🐾',
+      emoji: '🐶',
       colors: {
         border: 'border-emerald-500',
         bg: 'bg-emerald-50',
@@ -154,16 +142,55 @@ export default function CreatePostPage() {
       },
     },
     {
+      value: 'adoption',
+      title: 'Doy en adopción',
+      tagline: 'Busco hogar definitivo',
+      description: 'La mascota está lista para una nueva familia. Compartí sus datos y contacto.',
+      emoji: '❤️',
+      colors: {
+        border: 'border-purple-500',
+        bg: 'bg-purple-50',
+        icon: 'bg-purple-100 text-purple-600',
+        ring: 'ring-purple-100',
+      },
+    },
+    {
+      value: 'foster',
+      title: 'Busco tránsito',
+      tagline: 'Hogar temporal para un rescatado',
+      description: 'Necesito que alguien reciba a la mascota mientras encuentro adopción definitiva.',
+      emoji: '🏡',
+      colors: {
+        border: 'border-amber-500',
+        bg: 'bg-amber-50',
+        icon: 'bg-amber-100 text-amber-600',
+        ring: 'ring-amber-100',
+      },
+    },
+    {
       value: 'sitter_needed',
       title: 'Necesito un cuidador',
-      tagline: 'Busco a alguien de confianza',
-      description: 'Contale a la comunidad qué mascota tenés y cuándo necesitás ayuda para cuidarla.',
-      emoji: '🏠',
+      tagline: 'Alguien que la cuide un tiempo',
+      description: 'Busco a alguien de confianza para que cuide a mi mascota mientras estoy afuera.',
+      emoji: '🦮',
       colors: {
         border: 'border-sky-500',
         bg: 'bg-sky-50',
         icon: 'bg-sky-100 text-sky-600',
         ring: 'ring-sky-100',
+      },
+    },
+    {
+      value: 'emergency',
+      title: 'Emergencia veterinaria',
+      tagline: 'Mascota lastimada o en riesgo',
+      description: 'Necesito ayuda urgente: transporte, contacto veterinario o dinero para atenderla.',
+      emoji: '🚨',
+      colors: {
+        border: 'border-red-500',
+        bg: 'bg-red-50',
+        icon: 'bg-red-100 text-red-600',
+        ring: 'ring-red-100',
       },
     },
   ]
@@ -187,7 +214,7 @@ export default function CreatePostPage() {
             {/* Tipo de post */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">¿Qué querés publicar?</label>
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {postTypes.map((option) => {
                   const isSelected = formData.type === option.value
                   return (
@@ -264,27 +291,6 @@ export default function CreatePostPage() {
                 required
               />
             </div>
-
-            {/* Mascota vinculada */}
-            {pets.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Vincular con una mascota (opcional)
-                </label>
-                <select
-                  value={formData.petId}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, petId: e.target.value }))}
-                  className="input"
-                >
-                  <option value="">Sin vincular</option>
-                  {pets.map((pet) => (
-                    <option key={pet.id} value={pet.id}>
-                      {pet.name} ({pet.type})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {/* Ubicación */}
             <div>
