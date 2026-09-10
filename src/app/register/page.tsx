@@ -28,8 +28,8 @@ export default function RegisterPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-[calc(100vh-73px)] flex items-center justify-center">
-        <span className="text-xl font-bold">Loading...</span>
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-slate-200 border-t-sky-500 rounded-full animate-spin" />
       </div>
     )
   }
@@ -53,75 +53,83 @@ export default function RegisterPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      alert('Registration successful! Please check your email to confirm, then login.')
+      alert('¡Cuenta creada! Revisá tu email para confirmar y luego iniciá sesión.')
       router.push('/login')
     }
   }
 
   return (
-    <div className="min-h-[calc(100vh-73px)] flex items-center justify-center bg-background px-4">
-      <div className="neo-card p-8 w-full max-w-md">
-        <h1 className="text-3xl font-black mb-6 text-center">Join FurMap 🐾</h1>
-        
-        {error && (
-          <div className="bg-red-100 border-2 border-black p-4 mb-4 font-medium text-red-600">
-            {error}
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gradient-hero px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">
+            🐾
           </div>
-        )}
+          <h1 className="text-3xl font-bold text-slate-900">Crear cuenta</h1>
+          <p className="text-slate-600 mt-2">Sumate a la comunidad de FurMap</p>
+        </div>
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block font-bold mb-2">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="neo-input w-full"
-              placeholder="cool_pet_parent"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block font-bold mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="neo-input w-full"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block font-bold mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="neo-input w-full"
-              placeholder="••••••••"
-              minLength={6}
-              required
-            />
-          </div>
+        <div className="card p-8">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="neo-button w-full py-3 text-center"
-          >
-            {loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
-        </form>
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre de usuario</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="input"
+                placeholder="tu_usuario"
+                required
+              />
+            </div>
 
-        <p className="mt-6 text-center font-medium">
-          Already have an account?{' '}
-          <Link href="/login" className="text-primary font-bold hover:underline">
-            Login
-          </Link>
-        </p>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input"
+                placeholder="tu@email.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input"
+                placeholder="Mínimo 6 caracteres"
+                minLength={6}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary w-full py-2.5"
+            >
+              {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-slate-600">
+            ¿Ya tenés cuenta?{' '}
+            <Link href="/login" className="text-sky-600 hover:text-sky-700 font-medium">
+              Iniciá sesión
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )

@@ -30,6 +30,7 @@ export interface Post {
   created_at: string
   contact_email?: string | null
   contact_phone?: string | null
+  photo_url?: string | null
   profiles?: Profile
   pets?: Pet
 }

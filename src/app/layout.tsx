@@ -6,8 +6,8 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FurMap - Your Pet Community Map",
-  description: "A community platform for pet owners to help lost pets, find pet sitters, and connect with neighbors.",
+  title: "FurMap - Mapa de mascotas de Córdoba",
+  description: "Plataforma comunitaria para reportar mascotas perdidas, encontradas y encontrar cuidadores en Córdoba, Argentina.",
 };
 
 export default function RootLayout({
@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} min-h-screen`}>
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen`} suppressHydrationWarning>
         <Navbar />
         <main>{children}</main>
       </body>

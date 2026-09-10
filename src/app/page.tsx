@@ -23,8 +23,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-73px)] flex items-center justify-center">
-        <span className="text-xl font-bold">Loading...</span>
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-slate-200 border-t-sky-500 rounded-full animate-spin" />
       </div>
     )
   }
@@ -32,117 +32,117 @@ export default function Home() {
   const features = [
     {
       icon: '🗺️',
-      title: 'Interactive Map',
-      description: 'See all posts on a map with color-coded pins. Find lost pets, found animals, and pet sitters near you.'
+      title: 'Mapa interactivo',
+      description: 'Visualiza mascotas perdidas, encontradas y cuidadores en tu zona con pines de colores.',
     },
     {
       icon: '🔔',
-      title: 'Real-time Notifications',
-      description: 'Get instant notifications when someone comments on your posts. Never miss an update!'
+      title: 'Notificaciones',
+      description: 'Recibí avisos al instante cuando alguien comenta en tus posts.',
     },
     {
       icon: '💬',
-      title: 'Community Comments',
-      description: 'Discuss and help each other. Comment on posts to coordinate searches and share information.'
+      title: 'Comentarios',
+      description: 'Coordina búsquedas y comparte pistas con la comunidad.',
     },
     {
-      icon: '📞',
-      title: 'Direct Contact',
-      description: 'Post owners can share contact info. Connect directly via email or WhatsApp.'
+      icon: '📸',
+      title: 'Fotos',
+      description: 'Sumá fotos a tus posts para que sea más fácil identificar a las mascotas.',
     },
     {
       icon: '🐾',
-      title: 'My Pets',
-      description: 'Create profiles for your furry friends. Link them to your posts for better visibility.'
+      title: 'Mis mascotas',
+      description: 'Creá perfiles de tus mascotas y vinculalos a tus publicaciones.',
     },
     {
       icon: '📍',
-      title: 'GPS Location',
-      description: 'One-click location detection. Click on the map or use GPS to set your exact position.'
-    }
+      title: 'Ubicación GPS',
+      description: 'Detección automática o selección manual en el mapa.',
+    },
   ]
 
   return (
-    <div className="min-h-[calc(100vh-73px)] bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black mb-6">
-            🐾 <span className="text-primary">Fur</span>Map
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-hero">
+      {/* Hero */}
+      <section className="max-w-6xl mx-auto px-4 pt-16 pb-20 sm:pt-24 sm:pb-28">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/60 backdrop-blur rounded-full border border-slate-200 mb-6">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium text-slate-700">Comunidad activa en Córdoba</span>
+          </div>
+
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6">
+            Encontrá y ayudá <br className="hidden sm:block" />
+            a mascotas <span className="bg-gradient-to-r from-sky-500 to-emerald-500 bg-clip-text text-transparent">cerca tuyo</span>
           </h1>
-          <p className="text-xl md:text-2xl font-medium max-w-2xl mx-auto">
-            Your neighborhood&apos;s pet community platform
+
+          <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-10">
+            Una plataforma comunitaria para reportar mascotas perdidas, publicar mascotas encontradas y conectar con cuidadores en tu barrio.
           </p>
-          <p className="text-lg text-gray-600 mt-4 max-w-xl mx-auto">
-            Connect with pet owners, find lost pets, help found animals, and discover trusted pet sitters in your area.
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/register" className="btn btn-primary px-6 py-3 text-base">
+              Unirme a la comunidad
+            </Link>
+            <Link href="/login" className="btn btn-secondary px-6 py-3 text-base">
+              Ya tengo cuenta
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="max-w-6xl mx-auto px-4 pb-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-3">
+            Todo lo que necesitás
+          </h2>
+          <p className="text-slate-600 text-lg">
+            Herramientas simples para que la comunidad se ayude entre sí.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map((feature, index) => (
-            <div key={index} className="neo-card p-6 text-center hover:translate-x-1 hover:-translate-y-1 transition-transform">
-              <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className="text-lg font-bold mb-2">{feature.title}</h3>
-              <p className="text-gray-600 text-sm">
+            <div key={index} className="card card-hover p-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-100 to-emerald-100 flex items-center justify-center text-2xl mb-4">
+                {feature.icon}
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">{feature.title}</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
                 {feature.description}
               </p>
             </div>
           ))}
         </div>
+      </section>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-          <Link 
-            href="/register" 
-            className="neo-button bg-primary text-white inline-block px-8 py-4 text-lg text-center"
-          >
-            Join the Community 🐾
-          </Link>
-          <Link 
-            href="/login" 
-            className="neo-button inline-block px-8 py-4 text-lg text-center"
-          >
-            Login
-          </Link>
-        </div>
-
-        <div className="mt-8 sm:mt-16 neo-card p-6 sm:p-8">
-          <h2 className="text-2xl font-bold mb-6 text-center">How It Works</h2>
+      {/* How it works */}
+      <section className="max-w-4xl mx-auto px-4 pb-24">
+        <div className="card p-8 sm:p-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 text-center">Cómo funciona</h2>
           <div className="grid sm:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="neo-tag bg-accent inline-block mb-3">1</div>
-              <h3 className="font-bold mb-2">Create Account</h3>
-              <p className="text-gray-600 text-sm">Sign up and set up your profile</p>
-            </div>
-            <div className="text-center">
-              <div className="neo-tag bg-accent inline-block mb-3">2</div>
-              <h3 className="font-bold mb-2">Add Your Pets</h3>
-              <p className="text-gray-600 text-sm">Create profiles for your furry friends</p>
-            </div>
-            <div className="text-center">
-              <div className="neo-tag bg-accent inline-block mb-3">3</div>
-              <h3 className="font-bold mb-2">Post & Connect</h3>
-              <p className="text-gray-600 text-sm">Create lost/found posts or find pet sitters</p>
-            </div>
+            {[
+              { step: '1', title: 'Creá tu cuenta', description: 'Registrate en segundos con tu email.' },
+              { step: '2', title: 'Publicá un post', description: 'Reportá una mascota perdida o encontrada.' },
+              { step: '3', title: 'Conectá', description: 'Chateá con la comunidad y ayudá.' },
+            ].map((item) => (
+              <div key={item.step} className="text-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white font-bold flex items-center justify-center mx-auto mb-3">
+                  {item.step}
+                </div>
+                <h3 className="font-semibold text-slate-900 mb-1">{item.title}</h3>
+                <p className="text-sm text-slate-600">{item.description}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="mt-12 text-center">
-          <a 
-            href="https://github.com/depapp/furmap" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="neo-button inline-flex items-center gap-2 px-6 py-3"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-            </svg>
-            View on GitHub
-          </a>
-        </div>
-
-        <p className="mt-8 text-center text-gray-500 text-sm">
-          Licensed under MIT License • Free to use • Built with ❤️ for pets everywhere
+        <p className="text-center text-slate-500 text-sm mt-8">
+          Hecho con ❤️ para la comunidad de mascotas de Córdoba
         </p>
-      </div>
+      </section>
     </div>
   )
 }

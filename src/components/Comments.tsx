@@ -45,14 +45,17 @@ export default function Comments({ postId }: CommentsProps) {
 
     const { data: { user: authUser } } = await supabase.auth.getUser()
 
-    const { data: newCommentData, error } = await supabase.from('comments').insert({
-      post_id: postId,
-      author_id: authUser?.id,
-      content: newComment.trim(),
-    }).select().single()
+    const { data: newCommentData, error } = await supabase
+      .from('comments')
+      .insert({
+        post_id: postId,
+        author_id: authUser?.id,
+        content: newComment.trim(),
+      })
+      .select()
+      .single()
 
     if (!error && newCommentData) {
-      // Fetch the comment with author info
       const { data: commentData } = await supabase
         .from('comments')
         .select(`
@@ -62,28 +65,23 @@ export default function Comments({ postId }: CommentsProps) {
         .eq('id', newCommentData.id)
         .single()
 
-      if (commentData) {
-        setComments([...comments, commentData as any])
-      }
+      if (commentData) setComments([...comments, commentData as any])
 
-      // Get post info to find the owner
       const { data: postData } = await supabase
         .from('posts')
         .select('id, author_id, title')
         .eq('id', postId)
         .single()
 
-      // Get commenter's profile
       const { data: fromProfile } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', authUser?.id)
         .single()
 
-      const commenterName = fromProfile?.username || 'Someone'
+      const commenterName = fromProfile?.username || 'Alguien'
       const notificationsToCreate: any[] = []
 
-      // Notify post owner (if not commenting on own post)
       if (postData && postData.author_id !== authUser?.id) {
         notificationsToCreate.push({
           user_id: postData.author_id,
@@ -91,20 +89,18 @@ export default function Comments({ postId }: CommentsProps) {
           post_id: postId,
           comment_id: newCommentData.id,
           from_user_id: authUser?.id,
-          message: `@${commenterName} commented on your post "${postData.title}"`,
+          message: `@${commenterName} comentó en tu post "${postData.title}"`,
         })
       }
 
-      // Get all users who commented on this post (unique, excluding current user)
       const { data: existingComments } = await supabase
         .from('comments')
         .select('author_id')
         .eq('post_id', postId)
 
-      const uniqueCommenterIds = [...new Set(existingComments?.map(c => c.author_id) || [])]
-        .filter(id => id !== authUser?.id && id !== postData?.author_id)
+      const uniqueCommenterIds = [...new Set(existingComments?.map((c) => c.author_id) || [])]
+        .filter((id) => id !== authUser?.id && id !== postData?.author_id)
 
-      // Notify other commenters
       for (const commenterId of uniqueCommenterIds) {
         notificationsToCreate.push({
           user_id: commenterId,
@@ -112,11 +108,10 @@ export default function Comments({ postId }: CommentsProps) {
           post_id: postId,
           comment_id: newCommentData.id,
           from_user_id: authUser?.id,
-          message: `@${commenterName} also commented on "${postData?.title}"`,
+          message: `@${commenterName} también comentó en "${postData?.title}"`,
         })
       }
 
-      // Create all notifications
       if (notificationsToCreate.length > 0) {
         await supabase.from('notifications').insert(notificationsToCreate)
       }
@@ -128,53 +123,53 @@ export default function Comments({ postId }: CommentsProps) {
   }
 
   const handleDelete = async (commentId: string) => {
-    if (!confirm('Delete this comment?')) return
-
-    const { error } = await supabase
-      .from('comments')
-      .delete()
-      .eq('id', commentId)
-
-    if (!error) {
-      setComments(comments.filter(c => c.id !== commentId))
-    }
+    if (!confirm('¿Eliminar comentario?')) return
+    const { error } = await supabase.from('comments').delete().eq('id', commentId)
+    if (!error) setComments(comments.filter((c) => c.id !== commentId))
   }
 
   if (loading) {
-    return <div className="text-center py-4">Loading comments...</div>
+    return <div className="text-center py-4 text-sm text-slate-500">Cargando comentarios...</div>
   }
 
   return (
-    <div className="mt-8">
-      <h3 className="text-xl font-bold mb-4">💬 Comments ({comments.length})</h3>
+    <div>
+      <h3 className="text-sm font-semibold text-slate-900 mb-4">
+        Comentarios ({comments.length})
+      </h3>
 
       {comments.length > 0 ? (
-        <div className="space-y-4 mb-6">
+        <div className="space-y-3 mb-6">
           {comments.map((comment) => (
-            <div key={comment.id} className="neo-card p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary text-white font-bold flex items-center justify-center text-sm">
-                    {getInitials(comment.profiles?.username || 'U')}
+            <div key={comment.id} className="flex gap-3">
+              <div className="w-9 h-9 rounded-full avatar text-sm flex-shrink-0">
+                {getInitials(comment.profiles?.username || 'U')}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="bg-slate-50 rounded-2xl px-4 py-2.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold text-slate-900">
+                      @{comment.profiles?.username}
+                    </span>
+                    <span className="text-xs text-slate-400">·</span>
+                    <span className="text-xs text-slate-500">{formatDate(comment.created_at)}</span>
                   </div>
-                  <span className="font-bold">@{comment.profiles?.username}</span>
-                  <span className="text-sm text-gray-500">{formatDate(comment.created_at)}</span>
+                  <p className="text-sm text-slate-700">{comment.content}</p>
                 </div>
                 {user?.id === comment.author_id && (
                   <button
                     onClick={() => handleDelete(comment.id)}
-                    className="text-red-500 text-sm hover:underline"
+                    className="text-xs text-slate-500 hover:text-red-600 mt-1 ml-4"
                   >
-                    Delete
+                    Eliminar
                   </button>
                 )}
               </div>
-              <p className="text-gray-700">{comment.content}</p>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-gray-500 mb-6">No comments yet. Be the first to comment!</p>
+        <p className="text-sm text-slate-500 mb-4">Aún no hay comentarios. ¡Sé el primero!</p>
       )}
 
       {user ? (
@@ -182,21 +177,23 @@ export default function Comments({ postId }: CommentsProps) {
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            className="neo-input w-full h-24"
-            placeholder="Write a comment..."
+            className="input h-20 resize-none"
+            placeholder="Escribí un comentario..."
             required
           />
-          <button
-            type="submit"
-            disabled={submitting || !newComment.trim()}
-            className="neo-button px-6 py-2"
-          >
-            {submitting ? 'Posting...' : 'Post Comment'}
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={submitting || !newComment.trim()}
+              className="btn btn-primary text-sm"
+            >
+              {submitting ? 'Enviando...' : 'Comentar'}
+            </button>
+          </div>
         </form>
       ) : (
-        <div className="neo-card p-4 text-center bg-gray-50">
-          <p className="text-gray-600">Please login to comment</p>
+        <div className="p-4 bg-slate-50 rounded-xl text-center text-sm text-slate-600">
+          Iniciá sesión para comentar
         </div>
       )}
     </div>

@@ -31,7 +31,6 @@ export default function MyPetsPage() {
       setUser(user)
       fetchPets(user.id)
     }
-    
     getUser()
   }, [router])
 
@@ -41,7 +40,7 @@ export default function MyPetsPage() {
       .select('*')
       .eq('owner_id', userId)
       .order('created_at', { ascending: false })
-    
+
     if (data) setPets(data)
     setLoading(false)
   }
@@ -51,14 +50,9 @@ export default function MyPetsPage() {
     setSubmitting(true)
 
     if (editingPet) {
-      await supabase
-        .from('pets')
-        .update(formData)
-        .eq('id', editingPet.id)
+      await supabase.from('pets').update(formData).eq('id', editingPet.id)
     } else {
-      await supabase
-        .from('pets')
-        .insert({ ...formData, owner_id: user?.id })
+      await supabase.from('pets').insert({ ...formData, owner_id: user?.id })
     }
 
     setFormData({ name: '', type: 'dog', breed: '', description: '' })
@@ -80,153 +74,147 @@ export default function MyPetsPage() {
   }
 
   const handleDelete = async (petId: string) => {
-    if (!confirm('Are you sure you want to delete this pet?')) return
-    
-    await supabase
-      .from('pets')
-      .delete()
-      .eq('id', petId)
-    
+    if (!confirm('¿Eliminar esta mascota?')) return
+    await supabase.from('pets').delete().eq('id', petId)
     fetchPets(user?.id)
   }
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-73px)] flex items-center justify-center">
-        <span className="text-xl font-bold">Loading...</span>
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-slate-200 border-t-sky-500 rounded-full animate-spin" />
       </div>
     )
   }
 
+  const petTypes: { value: Pet['type']; label: string; emoji: string }[] = [
+    { value: 'dog', label: 'Perro', emoji: '🐕' },
+    { value: 'cat', label: 'Gato', emoji: '🐱' },
+    { value: 'bird', label: 'Pájaro', emoji: '🐦' },
+    { value: 'rabbit', label: 'Conejo', emoji: '🐰' },
+    { value: 'fish', label: 'Pez', emoji: '🐟' },
+    { value: 'other', label: 'Otro', emoji: '🐾' },
+  ]
+
   return (
-    <div className="min-h-[calc(100vh-73px)] bg-background py-8 px-4">
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-black">My Pets 🐾</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Mis mascotas</h1>
+            <p className="text-sm text-slate-600 mt-0.5">Gestioná los perfiles de tus mascotas</p>
+          </div>
           <button
             onClick={() => {
               setShowForm(!showForm)
               setEditingPet(null)
               setFormData({ name: '', type: 'dog', breed: '', description: '' })
             }}
-            className="neo-button neo-button-secondary px-6 py-3"
+            className={showForm ? 'btn btn-secondary' : 'btn btn-primary'}
           >
-            {showForm ? 'Cancel' : '+ Add Pet'}
+            {showForm ? 'Cancelar' : '+ Agregar'}
           </button>
         </div>
 
         {showForm && (
-          <div className="neo-card p-8 mb-8">
-            <h2 className="text-xl font-bold mb-6">
-              {editingPet ? 'Edit Pet' : 'Add New Pet'}
+          <div className="card p-6 mb-6 animate-slide-up">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">
+              {editingPet ? 'Editar mascota' : 'Nueva mascota'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold mb-2">Name</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="neo-input w-full"
-                    placeholder="Buddy"
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                    className="input"
+                    placeholder="Firulais"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-2">Type</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Tipo</label>
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as Pet['type'] }))}
-                    className="neo-input w-full"
+                    onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as Pet['type'] }))}
+                    className="input"
                   >
-                    <option value="dog">🐕 Dog</option>
-                    <option value="cat">🐱 Cat</option>
-                    <option value="bird">🐦 Bird</option>
-                    <option value="rabbit">🐰 Rabbit</option>
-                    <option value="fish">🐟 Fish</option>
-                    <option value="other">🐾 Other</option>
+                    {petTypes.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.emoji} {t.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold mb-2">Breed (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Raza (opcional)</label>
                 <input
                   type="text"
                   value={formData.breed}
-                  onChange={(e) => setFormData(prev => ({ ...prev, breed: e.target.value }))}
-                  className="neo-input w-full"
+                  onChange={(e) => setFormData((prev) => ({ ...prev, breed: e.target.value }))}
+                  className="input"
                   placeholder="Golden Retriever"
                 />
               </div>
 
               <div>
-                <label className="block font-bold mb-2">Description (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Descripción (opcional)</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="neo-input w-full h-24"
-                  placeholder="Describe your pet..."
+                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                  className="input h-24 resize-none"
+                  placeholder="Contanos sobre tu mascota..."
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="neo-button w-full py-3"
-              >
-                {submitting ? 'Saving...' : editingPet ? 'Update Pet' : 'Add Pet'}
+              <button type="submit" disabled={submitting} className="btn btn-primary w-full">
+                {submitting ? 'Guardando...' : editingPet ? 'Actualizar' : 'Agregar mascota'}
               </button>
             </form>
           </div>
         )}
 
         {pets.length > 0 ? (
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid sm:grid-cols-2 gap-4">
             {pets.map((pet) => (
-              <div key={pet.id} className="neo-card p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-4xl">{getPetEmoji(pet.type)}</span>
-                    <div>
-                      <h3 className="text-xl font-bold">{pet.name}</h3>
-                      {pet.breed && <p className="text-gray-500">{pet.breed}</p>}
-                    </div>
+              <div key={pet.id} className="card p-5">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-sky-100 to-emerald-100 flex items-center justify-center text-3xl flex-shrink-0">
+                    {getPetEmoji(pet.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-slate-900">{pet.name}</h3>
+                    {pet.breed && <p className="text-sm text-slate-500">{pet.breed}</p>}
+                    <p className="text-xs text-slate-400 mt-1">Agregada {formatDate(pet.created_at)}</p>
                   </div>
                 </div>
                 {pet.description && (
-                  <p className="text-gray-600 mb-4">{pet.description}</p>
+                  <p className="text-sm text-slate-600 mb-4">{pet.description}</p>
                 )}
-                <p className="text-sm text-gray-500 mb-4">
-                  Added {formatDate(pet.created_at)}
-                </p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(pet)}
-                    className="neo-button px-4 py-2 text-sm"
-                  >
-                    Edit
+                  <button onClick={() => handleEdit(pet)} className="btn btn-secondary text-sm flex-1">
+                    Editar
                   </button>
-                  <button
-                    onClick={() => handleDelete(pet.id)}
-                    className="neo-button bg-red-500 text-white px-4 py-2 text-sm"
-                  >
-                    Delete
+                  <button onClick={() => handleDelete(pet.id)} className="btn btn-danger text-sm">
+                    Eliminar
                   </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="neo-card p-12 text-center">
-            <p className="text-xl font-bold text-gray-500 mb-4">No pets yet</p>
-            <p className="text-gray-500 mb-6">Add your furry friends to link them to your posts!</p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="neo-button px-6 py-3"
-            >
-              Add Your First Pet
+          <div className="card p-12 text-center">
+            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl mx-auto mb-4">
+              🐾
+            </div>
+            <p className="text-lg font-semibold text-slate-900 mb-2">Todavía no tenés mascotas</p>
+            <p className="text-slate-600 mb-6">Agregá a tus mascotas para vincularlas a tus posts.</p>
+            <button onClick={() => setShowForm(true)} className="btn btn-primary">
+              Agregar mi primera mascota
             </button>
           </div>
         )}

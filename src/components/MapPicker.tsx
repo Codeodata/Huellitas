@@ -1,83 +1,123 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
+import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
 
-const icon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-})
+// Coordenadas de Córdoba, Argentina
+const CORDOBA_CENTER: [number, number] = [-31.4201, -64.1888]
 
 interface MapPickerProps {
   center: [number, number]
   onLocationSelect: (lat: number, lng: number) => void
 }
 
-function MapEvents({ onClick }: { onClick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) {
-      onClick(e.latlng.lat, e.latlng.lng)
-    },
-  })
-  return null
-}
-
-function MapController({ center }: { center: [number, number] }) {
-  const map = useMap()
-  
-  useEffect(() => {
-    map.setView(center, map.getZoom())
-  }, [center, map])
-  
-  return null
-}
-
 export default function MapPicker({ center, onLocationSelect }: MapPickerProps) {
-  const [mounted, setMounted] = useState(false)
-  const [position, setPosition] = useState<[number, number]>(center)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<any>(null)
+  const markerRef = useRef<any>(null)
+  // Guardamos el callback en un ref para no reinicializar el mapa cuando cambia
+  const onLocationSelectRef = useRef(onLocationSelect)
 
   useEffect(() => {
-    setMounted(true)
+    onLocationSelectRef.current = onLocationSelect
+  }, [onLocationSelect])
+
+  // Inicializar el mapa una única vez
+  useEffect(() => {
+    let cancelled = false
+
+    const init = async () => {
+      if (!containerRef.current || mapRef.current) return
+
+      const L = (await import('leaflet')).default
+      if (cancelled) return
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      })
+
+      const initialCenter: [number, number] =
+        center[0] !== 0 && center[1] !== 0 ? center : CORDOBA_CENTER
+
+      const map = L.map(containerRef.current, {
+        center: initialCenter,
+        zoom: 13,
+        scrollWheelZoom: true,
+      })
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map)
+
+      // Marker moderno con divIcon
+      const html = `
+        <div style="position:relative;width:32px;height:40px;transform:translate(-50%,-100%)">
+          <div style="
+            position:absolute;left:50%;top:0;transform:translateX(-50%);
+            width:32px;height:32px;border-radius:9999px;background:#0EA5E9;
+            border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.18),0 0 0 4px #BAE6FD;
+            display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;
+          ">📍</div>
+          <div style="
+            position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+            width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
+            border-top:10px solid #0EA5E9;
+          "></div>
+        </div>
+      `
+      const customIcon = L.divIcon({
+        html,
+        className: '',
+        iconSize: [32, 40],
+        iconAnchor: [16, 40],
+      })
+
+      const marker = L.marker(initialCenter, { draggable: true, icon: customIcon }).addTo(map)
+
+      marker.on('dragend', () => {
+        const pos = marker.getLatLng()
+        onLocationSelectRef.current(pos.lat, pos.lng)
+      })
+
+      map.on('click', (e: any) => {
+        marker.setLatLng(e.latlng)
+        onLocationSelectRef.current(e.latlng.lat, e.latlng.lng)
+      })
+
+      mapRef.current = map
+      markerRef.current = marker
+    }
+
+    init()
+
+    return () => {
+      cancelled = true
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+        markerRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Actualizar la posición del marker cuando el center cambia externamente
   useEffect(() => {
-    setPosition(center)
+    if (!mapRef.current || !markerRef.current) return
+    markerRef.current.setLatLng(center)
+    mapRef.current.setView(center, mapRef.current.getZoom())
   }, [center])
 
-  const handleMapClick = (lat: number, lng: number) => {
-    setPosition([lat, lng])
-    onLocationSelect(lat, lng)
-  }
-
-  if (!mounted) {
-    return (
-      <div className="h-full w-full bg-gray-200 flex items-center justify-center border-4 border-black">
-        <span className="font-bold">Loading map...</span>
-      </div>
-    )
-  }
-
   return (
-    <MapContainer 
-      center={position} 
-      zoom={13} 
-      className="h-full w-full"
-      style={{ border: '3px solid #1A1A1A', boxShadow: '4px 4px 0 #1A1A1A' }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <MapController center={position} />
-      <MapEvents onClick={handleMapClick} />
-      <Marker position={position} icon={icon} />
-    </MapContainer>
+    <div
+      ref={containerRef}
+      className="h-full w-full rounded-2xl overflow-hidden"
+      style={{ minHeight: '300px', zIndex: 0 }}
+    />
   )
 }

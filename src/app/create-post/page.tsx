@@ -5,10 +5,18 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 import { Pet } from '@/types'
+import PhotoUpload from '@/components/PhotoUpload'
 
-const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
+// Coordenadas de Córdoba, Argentina
+const CORDOBA_CENTER: [number, number] = [-31.4201, -64.1888]
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), {
   ssr: false,
-  loading: () => <div className="h-[300px] bg-gray-200 flex items-center justify-center border-4 border-black"><span className="font-bold">Loading map...</span></div>
+  loading: () => (
+    <div className="h-[300px] bg-slate-100 rounded-2xl flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-slate-300 border-t-sky-500 rounded-full animate-spin" />
+    </div>
+  ),
 })
 
 export default function CreatePostPage() {
@@ -18,17 +26,18 @@ export default function CreatePostPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [gettingLocation, setGettingLocation] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     type: 'lost' as 'lost' | 'found' | 'sitter_needed',
     title: '',
     description: '',
     petId: '',
     address: '',
-    latitude: 40.7128,
-    longitude: -74.0060,
+    latitude: CORDOBA_CENTER[0],
+    longitude: CORDOBA_CENTER[1],
     contactEmail: '',
     contactPhone: '',
+    photoUrl: null as string | null,
   })
 
   useEffect(() => {
@@ -44,61 +53,41 @@ export default function CreatePostPage() {
         .from('pets')
         .select('*')
         .eq('owner_id', user.id)
-      
+
       if (petsData) setPets(petsData)
     }
-    
+
     getUser()
   }, [router])
 
   const handleGetLocation = async () => {
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser')
+      setError('Tu navegador no soporta geolocalización')
       return
     }
-    
+
     setGettingLocation(true)
     setError('')
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         }))
         setGettingLocation(false)
       },
-      async () => {
-        try {
-          const response = await fetch('https://ipapi.co/json/')
-          const data = await response.json()
-          if (data.latitude && data.longitude) {
-            setFormData(prev => ({
-              ...prev,
-              latitude: data.latitude,
-              longitude: data.longitude,
-            }))
-            setGettingLocation(false)
-            return
-          }
-        } catch (e) {
-          console.log('IP geolocation failed')
-        }
-        
-        setError('No GPS available. Desktop Macs don\'t have GPS hardware. Click on the map to set your location - that\'s what most users do!')
+      () => {
+        setError('No se pudo obtener la ubicación. Hacé clic en el mapa para seleccionarla manualmente.')
         setGettingLocation(false)
       },
-      { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
     )
   }
 
   const handleLocationSelect = (lat: number, lng: number) => {
-    setFormData(prev => ({
-      ...prev,
-      latitude: lat,
-      longitude: lng,
-    }))
+    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +96,7 @@ export default function CreatePostPage() {
     setError('')
 
     if (!user) {
-      setError('You must be logged in')
+      setError('Debés iniciar sesión')
       setLoading(false)
       return
     }
@@ -125,6 +114,7 @@ export default function CreatePostPage() {
       address: formData.address,
       contact_email: formData.contactEmail || null,
       contact_phone: formData.contactPhone || null,
+      photo_url: formData.photoUrl,
     })
 
     if (error) {
@@ -136,73 +126,157 @@ export default function CreatePostPage() {
     }
   }
 
+  const postTypes = [
+    {
+      value: 'lost',
+      title: 'Perdí a mi mascota',
+      tagline: 'Se escapó o no la encuentro',
+      description: 'Publicá una alerta para que vecinos y voluntarios te ayuden a encontrarla.',
+      emoji: '🔍',
+      colors: {
+        border: 'border-rose-500',
+        bg: 'bg-rose-50',
+        icon: 'bg-rose-100 text-rose-600',
+        ring: 'ring-rose-100',
+      },
+    },
+    {
+      value: 'found',
+      title: 'Encontré una mascota',
+      tagline: 'La vi o la tengo conmigo',
+      description: 'Compartila para reconectarla con su familia. Una foto ayuda muchísimo.',
+      emoji: '🐾',
+      colors: {
+        border: 'border-emerald-500',
+        bg: 'bg-emerald-50',
+        icon: 'bg-emerald-100 text-emerald-600',
+        ring: 'ring-emerald-100',
+      },
+    },
+    {
+      value: 'sitter_needed',
+      title: 'Necesito un cuidador',
+      tagline: 'Busco a alguien de confianza',
+      description: 'Contale a la comunidad qué mascota tenés y cuándo necesitás ayuda para cuidarla.',
+      emoji: '🏠',
+      colors: {
+        border: 'border-sky-500',
+        bg: 'bg-sky-50',
+        icon: 'bg-sky-100 text-sky-600',
+        ring: 'ring-sky-100',
+      },
+    },
+  ]
+
   return (
-    <div className="min-h-[calc(100vh-73px)] bg-background py-8 px-4">
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="neo-card p-8">
-          <h1 className="text-3xl font-black mb-6">Create Post 🐾</h1>
-          
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900">Crear post</h1>
+          <p className="text-sm text-slate-600 mt-0.5">Ayudá a tu comunidad a reconectar con sus mascotas</p>
+        </div>
+
+        <div className="card p-6 sm:p-8">
           {error && (
-            <div className="bg-red-100 border-2 border-black p-4 mb-4 font-medium text-red-600">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Tipo de post */}
             <div>
-              <label className="block font-bold mb-2">Post Type</label>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { value: 'lost', label: '🐕 Lost Pet', color: 'bg-red-500' },
-                  { value: 'found', label: '✅ Found Pet', color: 'bg-green-500' },
-                  { value: 'sitter_needed', label: '🏠 Need Sitter', color: 'bg-blue-500' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, type: option.value as any }))}
-                    className={`neo-button px-4 py-2 ${formData.type === option.value ? option.color : 'opacity-50'}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+              <label className="block text-sm font-medium text-slate-700 mb-3">¿Qué querés publicar?</label>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {postTypes.map((option) => {
+                  const isSelected = formData.type === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, type: option.value as any }))}
+                      className={`relative p-4 rounded-2xl border-2 text-left transition-all ${
+                        isSelected
+                          ? `${option.colors.border} ${option.colors.bg} shadow-sm ring-4 ${option.colors.ring}`
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className={`w-11 h-11 rounded-xl ${option.colors.icon} flex items-center justify-center text-xl mb-3`}>
+                        {option.emoji}
+                      </div>
+                      <div className="text-sm font-semibold text-slate-900 mb-0.5">{option.title}</div>
+                      <div className="text-xs text-slate-500 mb-2">{option.tagline}</div>
+                      <p className="text-xs text-slate-600 leading-relaxed">{option.description}</p>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
+            {/* Foto */}
             <div>
-              <label className="block font-bold mb-2">Title</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Foto {formData.type === 'found' && <span className="text-sky-600">(recomendado)</span>}
+              </label>
+              {user && (
+                <PhotoUpload
+                  value={formData.photoUrl}
+                  onChange={(url) => setFormData((prev) => ({ ...prev, photoUrl: url }))}
+                  userId={user.id}
+                />
+              )}
+            </div>
+
+            {/* Título */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Título</label>
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className="neo-input w-full"
-                placeholder={formData.type === 'lost' ? 'Lost Golden Retriever in Downtown' : 
-                             formData.type === 'found' ? 'Found Cat Near Central Park' : 
-                             'Need Pet Sitter for Weekend'}
+                onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                className="input"
+                placeholder={
+                  formData.type === 'lost'
+                    ? 'Se perdió mi Golden en Nueva Córdoba'
+                    : formData.type === 'found'
+                    ? 'Encontré un gato en Cerro de las Rosas'
+                    : 'Busco cuidador para el finde'
+                }
                 required
               />
             </div>
 
+            {/* Descripción */}
             <div>
-              <label className="block font-bold mb-2">Description</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="neo-input w-full h-32"
-                placeholder="Provide details about the pet, location, contact info, etc."
+                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                className="input h-28 resize-none"
+                placeholder="Contá los detalles: características de la mascota, dónde/cuándo, cómo contactarte..."
                 required
               />
             </div>
 
+            {/* Mascota vinculada */}
             {pets.length > 0 && (
               <div>
-                <label className="block font-bold mb-2">Link to Pet (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Vincular con una mascota (opcional)
+                </label>
                 <select
                   value={formData.petId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, petId: e.target.value }))}
-                  className="neo-input w-full"
+                  onChange={(e) => setFormData((prev) => ({ ...prev, petId: e.target.value }))}
+                  className="input"
                 >
-                  <option value="">Select a pet</option>
+                  <option value="">Sin vincular</option>
                   {pets.map((pet) => (
                     <option key={pet.id} value={pet.id}>
                       {pet.name} ({pet.type})
@@ -212,81 +286,89 @@ export default function CreatePostPage() {
               </div>
             )}
 
+            {/* Ubicación */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block font-bold">Location</label>
+                <label className="block text-sm font-medium text-slate-700">Ubicación</label>
                 <button
                   type="button"
                   onClick={handleGetLocation}
                   disabled={gettingLocation}
-                  className="neo-button neo-button-accent px-4 py-2 text-sm"
+                  className="btn btn-secondary text-xs"
                 >
-                  {gettingLocation ? '📍 Getting...' : '📍 Use GPS'}
+                  {gettingLocation ? '📍 Buscando...' : '📍 Usar GPS'}
                 </button>
               </div>
-              
-              <p className="text-sm text-gray-600 mb-3">
-                📍 Click on the map to set location: <strong>{formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}</strong>
+
+              <p className="text-xs text-slate-500 mb-2">
+                Hacé clic en el mapa o arrastrá para marcar la ubicación exacta
               </p>
-              
-              <div className="h-[300px] mb-4">
-                <MapPicker 
-                  center={[formData.latitude, formData.longitude]} 
+
+              <div className="h-[300px] mb-3">
+                <MapPicker
+                  center={[formData.latitude, formData.longitude]}
                   onLocationSelect={handleLocationSelect}
                 />
               </div>
-              
+
+              <div className="bg-slate-50 rounded-lg p-2.5 mb-3 text-xs text-slate-600 font-mono">
+                📍 {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+              </div>
+
               <input
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                className="neo-input w-full"
-                placeholder="Address or area name (optional)"
+                onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+                className="input"
+                placeholder="Dirección o barrio (opcional)"
               />
             </div>
 
-            <div className="neo-card p-4 bg-gray-50">
-              <h3 className="font-bold mb-4">📞 Contact Information</h3>
-              <p className="text-sm text-gray-600 mb-4">Other users can reach you through:</p>
-              <div className="grid md:grid-cols-2 gap-4">
+            {/* Contacto */}
+            <div className="pt-2 border-t border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 mb-1">Contacto</h3>
+              <p className="text-xs text-slate-500 mb-3">
+                Cómo quieren contactarte otros usuarios (opcional)
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-2">Email</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
                   <input
                     type="email"
                     value={formData.contactEmail}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                    className="neo-input w-full"
-                    placeholder="your@email.com"
+                    onChange={(e) => setFormData((prev) => ({ ...prev, contactEmail: e.target.value }))}
+                    className="input"
+                    placeholder="tu@email.com"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-2">Phone (WhatsApp)</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">WhatsApp</label>
                   <input
                     type="tel"
                     value={formData.contactPhone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
-                    className="neo-input w-full"
-                    placeholder="+62812345678"
+                    onChange={(e) => setFormData((prev) => ({ ...prev, contactPhone: e.target.value }))}
+                    className="input"
+                    placeholder="+54 351 1234567"
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Leave empty if you prefer to be contacted through comments only.</p>
             </div>
 
-            <div className="flex gap-4">
+            {/* Acciones */}
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="neo-button bg-gray-300 px-6 py-3"
+                className="btn btn-secondary"
               >
-                Cancel
+                Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="neo-button flex-1 py-3"
+                className="btn btn-primary flex-1"
               >
-                {loading ? 'Creating...' : 'Create Post'}
+                {loading ? 'Publicando...' : 'Publicar post'}
               </button>
             </div>
           </form>
