@@ -15,9 +15,7 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showDropdown, setShowDropdown] = useState(false)
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -26,11 +24,11 @@ export default function Navbar() {
       if (user) fetchNotifications(user.id)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchNotifications(session.user.id)
-      }
+      if (session?.user) fetchNotifications(session.user.id)
     })
 
     return () => subscription.unsubscribe()
@@ -41,9 +39,6 @@ export default function Navbar() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false)
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-        setShowMobileMenu(false)
-      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -52,10 +47,7 @@ export default function Navbar() {
   const fetchNotifications = async (userId: string) => {
     const { data } = await supabase
       .from('notifications')
-      .select(`
-        *,
-        from_profile:from_user_id(username)
-      `)
+      .select(`*, from_profile:from_user_id(username)`)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10)
@@ -67,25 +59,20 @@ export default function Navbar() {
   }
 
   const markAsRead = async (notificationId: string) => {
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', notificationId)
-
-    setNotifications(notifications.map(n =>
-      n.id === notificationId ? { ...n, read: true } : n
-    ))
-    setUnreadCount(Math.max(0, unreadCount - 1))
+    await supabase.from('notifications').update({ read: true }).eq('id', notificationId)
+    setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)))
+    setUnreadCount((c) => Math.max(0, c - 1))
   }
 
   const markAllAsRead = async () => {
+    if (!user) return
     await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id)
       .eq('read', false)
 
-    setNotifications(notifications.map(n => ({ ...n, read: true })))
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     setUnreadCount(0)
   }
 
@@ -97,62 +84,85 @@ export default function Navbar() {
 
   const isActive = (path: string) => pathname === path
 
-  const NavLink = ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: () => void }) => (
+  const NavItem = ({
+    href,
+    icon,
+    label,
+  }: {
+    href: string
+    icon: React.ReactNode
+    label: string
+  }) => (
     <Link
       href={href}
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
         isActive(href)
           ? 'bg-slate-100 text-slate-900'
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
       }`}
+      aria-label={label}
     >
-      {children}
+      <span className="text-base sm:hidden">{icon}</span>
+      <span className="hidden sm:inline">{label}</span>
     </Link>
   )
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 group">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6">
+        <div className="flex items-center justify-between h-16 gap-2">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.svg"
               alt="Huellitas"
               className="w-9 h-9 rounded-xl group-hover:scale-105 transition-transform"
             />
-            <span className="text-lg font-bold text-slate-900">Huellitas</span>
+            <span className="text-base sm:text-lg font-bold text-slate-900 hidden xs:inline sm:inline">
+              Huellitas
+            </span>
           </Link>
 
-          {/* Mobile menu button */}
-          {user && (
-            <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
-              aria-label="Menu"
-            >
-              <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {showMobileMenu ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          )}
+          {loading ? (
+            <div className="w-24 h-8 bg-slate-100 rounded-lg animate-pulse" />
+          ) : user ? (
+            <>
+              {/* Menú principal siempre visible */}
+              <div className="flex items-center gap-0.5 sm:gap-1 flex-1 justify-center sm:justify-start sm:ml-4">
+                <NavItem
+                  href="/dashboard"
+                  label="Dashboard"
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                  }
+                />
+                <NavItem
+                  href="/create-post"
+                  label="Nuevo Post"
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  }
+                />
+                <NavItem
+                  href="/services"
+                  label="Servicios"
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  }
+                />
+              </div>
 
-          {/* Desktop nav */}
-          <div className="hidden lg:flex items-center gap-1">
-            {loading ? (
-              <div className="w-24 h-8 bg-slate-100 rounded-lg animate-pulse" />
-            ) : user ? (
-              <>
-                <NavLink href="/dashboard">Dashboard</NavLink>
-                <NavLink href="/create-post">Nuevo Post</NavLink>
-                <NavLink href="/services">Servicios</NavLink>
-
-                <div className="relative ml-2" ref={dropdownRef}>
+              {/* Campana + logout */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}
                     className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -162,19 +172,19 @@ export default function Navbar() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                     {unreadCount > 0 && (
-                      <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {unreadCount}
                       </span>
                     )}
                   </button>
 
                   {showDropdown && (
-                    <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
+                    <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
                       <div className="flex items-center justify-between p-4 border-b border-slate-100">
                         <span className="font-semibold text-slate-900">Notificaciones</span>
                         {unreadCount > 0 && (
                           <button onClick={markAllAsRead} className="text-xs text-sky-600 hover:text-sky-700 font-medium">
-                            Marcar todas como leídas
+                            Marcar todas leídas
                           </button>
                         )}
                       </div>
@@ -211,55 +221,27 @@ export default function Navbar() {
 
                 <button
                   onClick={handleLogout}
-                  className="ml-2 btn btn-ghost"
+                  className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 hover:text-slate-900"
+                  aria-label="Salir"
+                  title="Salir"
                 >
-                  Salir
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
                 </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className="btn btn-ghost">
-                  Iniciar sesión
-                </Link>
-                <Link href="/register" className="btn btn-primary">
-                  Registrarse
-                </Link>
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link href="/login" className="btn btn-ghost text-sm">
+                Iniciar sesión
+              </Link>
+              <Link href="/register" className="btn btn-primary text-sm">
+                Registrarse
+              </Link>
+            </div>
+          )}
         </div>
-
-        {/* Mobile nav */}
-        {user && showMobileMenu && (
-          <div ref={mobileMenuRef} className="lg:hidden py-3 border-t border-slate-100 space-y-1 animate-fade-in">
-            <NavLink href="/dashboard" onClick={() => setShowMobileMenu(false)}>Dashboard</NavLink>
-            <NavLink href="/create-post" onClick={() => setShowMobileMenu(false)}>Nuevo Post</NavLink>
-            <NavLink href="/services" onClick={() => setShowMobileMenu(false)}>Servicios</NavLink>
-            <NavLink href="/notifications" onClick={() => setShowMobileMenu(false)}>
-              Notificaciones {unreadCount > 0 && <span className="ml-1 badge badge-red">{unreadCount}</span>}
-            </NavLink>
-            <button
-              onClick={() => {
-                setShowMobileMenu(false)
-                handleLogout()
-              }}
-              className="w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Salir
-            </button>
-          </div>
-        )}
-
-        {!user && showMobileMenu && (
-          <div className="lg:hidden py-3 border-t border-slate-100 flex flex-col gap-2 animate-fade-in">
-            <Link href="/login" className="btn btn-secondary w-full" onClick={() => setShowMobileMenu(false)}>
-              Iniciar sesión
-            </Link>
-            <Link href="/register" className="btn btn-primary w-full" onClick={() => setShowMobileMenu(false)}>
-              Registrarse
-            </Link>
-          </div>
-        )}
       </div>
     </nav>
   )
