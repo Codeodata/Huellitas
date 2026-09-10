@@ -80,10 +80,10 @@ export default function Comments({ postId }: CommentsProps) {
         .single()
 
       const commenterName = fromProfile?.username || 'Alguien'
-      const notificationsToCreate: any[] = []
 
+      // Solo notificar al dueño del post (y solo si no está comentando en su propio post)
       if (postData && postData.author_id !== authUser?.id) {
-        notificationsToCreate.push({
+        await supabase.from('notifications').insert({
           user_id: postData.author_id,
           type: 'comment',
           post_id: postId,
@@ -91,29 +91,6 @@ export default function Comments({ postId }: CommentsProps) {
           from_user_id: authUser?.id,
           message: `@${commenterName} comentó en tu post "${postData.title}"`,
         })
-      }
-
-      const { data: existingComments } = await supabase
-        .from('comments')
-        .select('author_id')
-        .eq('post_id', postId)
-
-      const uniqueCommenterIds = [...new Set(existingComments?.map((c) => c.author_id) || [])]
-        .filter((id) => id !== authUser?.id && id !== postData?.author_id)
-
-      for (const commenterId of uniqueCommenterIds) {
-        notificationsToCreate.push({
-          user_id: commenterId,
-          type: 'comment',
-          post_id: postId,
-          comment_id: newCommentData.id,
-          from_user_id: authUser?.id,
-          message: `@${commenterName} también comentó en "${postData?.title}"`,
-        })
-      }
-
-      if (notificationsToCreate.length > 0) {
-        await supabase.from('notifications').insert(notificationsToCreate)
       }
 
       setNewComment('')
